@@ -22,13 +22,13 @@ Includes an interactive web dashboard, automated hardware acceleration (CUDA/CPU
 
 ```mermaid
 flowchart LR
-    A["Client / Web UI"] --> B["FastAPI Router"]
-    B --> C["Pydantic Validation"]
-    C --> D["PyTorch DistilBERT Engine"]
-    D --> E["Tokenizer"]
-    E --> F["Tensor Inference (CUDA/CPU)"]
-    F --> G["Softmax & Confidence Scoring"]
-    G --> H["JSON Output (Score Breakdown + Latency)"]
+    A[Client or Web UI] --> B[FastAPI Router]
+    B --> C[Pydantic Validation]
+    C --> D[PyTorch DistilBERT Engine]
+    D --> E[Tokenizer]
+    E --> F[Tensor Inference - CUDA or CPU]
+    F --> G[Softmax and Confidence Scoring]
+    G --> H[JSON Output with Latency]
 ```
 
 ---
