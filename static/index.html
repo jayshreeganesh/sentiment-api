@@ -231,6 +231,14 @@
         lastPayload = data;
         document.getElementById('jsonViewer').innerText = JSON.stringify(data, null, 2);
 
+        if (!res.ok) {
+          const detail = data.detail 
+            ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
+            : (data.message || `Server returned HTTP ${res.status}`);
+          alert("API Error: " + detail);
+          return;
+        }
+
         renderResults(data);
       } catch (err) {
         alert("Inference error: " + err.message);
@@ -241,62 +249,72 @@
     }
 
     function renderResults(data) {
+      if (!data) return;
       document.getElementById('emptyState').classList.add('hidden');
       document.getElementById('resultsContainer').classList.remove('hidden');
 
-      document.getElementById('latencyBadge').innerText = `Latency: ${data.inference_time_ms} ms`;
+      document.getElementById('latencyBadge').innerText = `Latency: ${data.inference_time_ms ?? '--'} ms`;
 
       const barsContainer = document.getElementById('probabilityBars');
       barsContainer.innerHTML = '';
 
-      if (currentMode === 'sentiment') {
-        document.getElementById('dominantCategoryTitle').innerText = "Dominant Sentiment";
-        document.getElementById('dominantLabel').innerText = data.sentiment;
-        document.getElementById('dominantConfidence').innerText = `${(data.confidence * 100).toFixed(1)}%`;
+      // Determine format safely by inspecting response payload
+      const isSentiment = (data.sentiment !== undefined) || (currentMode === 'sentiment' && !data.dominant_emotion);
 
-        if (data.sentiment === 'POSITIVE') {
+      if (isSentiment) {
+        const sentiment = data.sentiment || "UNKNOWN";
+        document.getElementById('dominantCategoryTitle').innerText = "Dominant Sentiment";
+        document.getElementById('dominantLabel').innerText = sentiment.toUpperCase();
+        document.getElementById('dominantConfidence').innerText = `${((data.confidence || 0) * 100).toFixed(1)}%`;
+
+        if (sentiment === 'POSITIVE') {
           document.getElementById('dominantLabel').className = "text-2xl font-bold tracking-tight text-emerald-400";
-        } else if (data.sentiment === 'NEGATIVE') {
+        } else if (sentiment === 'NEGATIVE') {
           document.getElementById('dominantLabel').className = "text-2xl font-bold tracking-tight text-rose-400";
         } else {
           document.getElementById('dominantLabel').className = "text-2xl font-bold tracking-tight text-amber-400";
         }
 
-        data.scores.forEach(s => {
-          const pct = (s.score * 100).toFixed(1);
-          const color = s.label === 'POSITIVE' ? 'bg-emerald-500' : 'bg-rose-500';
-          barsContainer.innerHTML += `
-            <div>
-              <div class="flex justify-between text-xs font-medium mb-1">
-                <span>${s.label}</span>
-                <span>${pct}%</span>
+        if (Array.isArray(data.scores)) {
+          data.scores.forEach(s => {
+            const pct = (s.score * 100).toFixed(1);
+            const color = s.label === 'POSITIVE' ? 'bg-emerald-500' : 'bg-rose-500';
+            barsContainer.innerHTML += `
+              <div>
+                <div class="flex justify-between text-xs font-medium mb-1">
+                  <span>${s.label}</span>
+                  <span>${pct}%</span>
+                </div>
+                <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-700">
+                  <div class="${color} h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                </div>
               </div>
-              <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-700">
-                <div class="${color} h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-              </div>
-            </div>
-          `;
-        });
+            `;
+          });
+        }
       } else {
+        const emotion = (data.dominant_emotion || "UNKNOWN").toUpperCase();
         document.getElementById('dominantCategoryTitle').innerText = "Dominant Emotion";
-        document.getElementById('dominantLabel').innerText = data.dominant_emotion.toUpperCase();
-        document.getElementById('dominantConfidence').innerText = `${(data.confidence * 100).toFixed(1)}%`;
+        document.getElementById('dominantLabel').innerText = emotion;
+        document.getElementById('dominantConfidence').innerText = `${((data.confidence || 0) * 100).toFixed(1)}%`;
         document.getElementById('dominantLabel').className = "text-2xl font-bold tracking-tight text-indigo-400";
 
-        Object.entries(data.emotions).forEach(([emotion, score]) => {
-          const pct = (score * 100).toFixed(1);
-          barsContainer.innerHTML += `
-            <div>
-              <div class="flex justify-between text-xs font-medium mb-1 capitalize">
-                <span>${emotion}</span>
-                <span>${pct}%</span>
+        if (data.emotions && typeof data.emotions === 'object') {
+          Object.entries(data.emotions).forEach(([emotionKey, score]) => {
+            const pct = (score * 100).toFixed(1);
+            barsContainer.innerHTML += `
+              <div>
+                <div class="flex justify-between text-xs font-medium mb-1 capitalize">
+                  <span>${emotionKey}</span>
+                  <span>${pct}%</span>
+                </div>
+                <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-700">
+                  <div class="bg-indigo-500 h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                </div>
               </div>
-              <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-700">
-                <div class="bg-indigo-500 h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-              </div>
-            </div>
-          `;
-        });
+            `;
+          });
+        }
       }
     }
 
